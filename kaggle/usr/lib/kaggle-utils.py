@@ -1,3 +1,5 @@
+# Use Kaggle <File> --> <Add Input> to add local utility scripts to notebooks
+
 import os
 import pandas as pd
 import json
