@@ -5,7 +5,8 @@ kagutils - A collection of utility functions for Kaggle notebooks.
 
 This module provides essential utility functions to enhance workflows within Kaggle notebooks. 
 The goal is to streamline common operations such as inventorying available files in the Kaggle 
-environment and loading input files into Python variables. 
+environment, loading input files into Python variables, managing file operations, and handling ZIP 
+archives. 
 
 Key Features:
     - Inventorying Files: The `inventory_files` function lists directories and files present 
@@ -13,33 +14,64 @@ Key Features:
     - Loading Inputs: The `load_inputs` function automatically loads CSV and JSON files into 
       Python variables (DataFrames for CSVs, dictionaries for JSONs), allowing for quick access 
       and manipulation within the notebook.
+    - Checking Missing Files: The `check_missing_files` function ensures that all required files 
+      are available in the Kaggle environment and provides feedback if any files are missing.
+    - Creating Directory Structures: The `create_directories` function allows users to create 
+      custom directory structures for organizing files, models, or outputs.
+    - Moving and Copying Files: The `move_or_copy_files` function moves or copies files between 
+      directories, making it easier to manage data or model outputs.
+    - Compressing and Extracting ZIP Files: The `zip_files` function compresses multiple files into 
+      a ZIP archive, while `unzip_file` extracts ZIP archives into a specified directory.
 
 Usage:
     1. Import the module after adding it to your Kaggle notebook:
     
-       `from kagutils import inventory_files, load_inputs`
-
+       `from kagutils import inventory_files, load_inputs, check_missing_files, 
+       create_directories, move_or_copy_files, zip_files, unzip_file`
+    
     2. Inventory available files in the Kaggle notebook:
     
-       `inventory_files(parent_dir='/kaggle', max_files=5, max_depth=2)`
+       `inventory_files(parent_dir='/kaggle', max_files=5, max_depth=2, quiet=False)`
     
     3. Load input files into Python variables:
     
-       `load_inputs(scope=globals())`
+       `load_inputs(scope=globals(), quiet=False)`
+    
+    4. Check for missing required files:
+    
+       `check_missing_files(required_files=['train.csv', 'test.csv'], quiet=False)`
+    
+    5. Create custom directory structures:
+    
+       `create_directories({'/kaggle/working': ['models', 'output']}, quiet=False)`
+    
+    6. Move or copy files between directories:
+    
+       `move_or_copy_files(['file1.csv', 'file2.csv'], '/kaggle/input', '/kaggle/working', action='move', quiet=False)`
+    
+    7. Compress files into a ZIP archive:
+    
+       `zip_files(['file1.csv', 'file2.csv'], 'my_archive.zip', '/kaggle/working', quiet=False)`
+    
+    8. Extract a ZIP archive into a directory:
+    
+       `unzip_file('my_archive.zip', '/kaggle/working', quiet=False)`
     
 This module is designed to be simple, intuitive, and compatible with Kaggle's environment, 
-making it easier to manage files and focus on analysis.
+making it easier to manage files, directories, and data operations, so you can focus on analysis.
 
 Author: ciioprf0
 """
 
 
 import os 
-import pandas as pd
 import json
+import pandas as pd
+import shutil
 import sqlite3
 import zipfile
 from typing import Any, Optional, Callable
+
 
 def inventory_files(parent_dir: str = '/kaggle', max_files: int = 5, max_depth: int = 2, quiet: bool = False) -> None:
     """
@@ -198,3 +230,125 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None, quiet: boo
         print("No input files found in the directory.")
         print("Did you forget to add inputs to this notebook?")
         print("To add inputs, go to the notebook menu bar and select 'File' -> 'Add inputs'.")
+        
+        
+def check_missing_files(required_files: list[str], input_dir: str = '/kaggle/input', quiet: bool = False) -> list[str]:
+    """
+    Check if required files are present in the input directory.
+    
+    Args:
+        required_files (list[str]): A list of required filenames (without paths).
+        input_dir (str): The base directory to check for files. Defaults to '/kaggle/input'.
+        quiet (bool): If True, suppresses output. Defaults to False.
+    
+    Returns:
+        list[str]: A list of missing files.
+    """
+    found_files = []
+    for dirname, _, filenames in os.walk(input_dir):
+        found_files.extend(filenames)
+
+    missing_files = [file for file in required_files if file not in found_files]
+    
+    if missing_files and not quiet:
+        print(f"Missing files: {missing_files}")
+    elif not missing_files and not quiet:
+        print("All required files are present.")
+    
+    return missing_files
+
+import shutil
+
+
+def create_directories(dir_structure: dict[str, list[str]], quiet: bool = False) -> None:
+    """
+    Create a directory structure based on the provided dictionary.
+    
+    Args:
+        dir_structure (dict): A dictionary where keys are parent directories and values are lists of subdirectories.
+        quiet (bool): If True, suppresses output. Defaults to False.
+    
+    Example:
+        dir_structure = {
+            '/kaggle/working': ['models', 'output'],
+            '/kaggle/input': ['data', 'temp']
+        }
+    """
+    for parent_dir, sub_dirs in dir_structure.items():
+        for sub_dir in sub_dirs:
+            dir_path = os.path.join(parent_dir, sub_dir)
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+                if not quiet:
+                    print(f"Created directory: {dir_path}")
+            elif not quiet:
+                print(f"Directory already exists: {dir_path}")
+
+
+
+def move_or_copy_files(files: list[str], src_dir: str, dest_dir: str, action: str = 'move', quiet: bool = False) -> None:
+    """
+    Move or copy a list of files from the source directory to the destination directory.
+    
+    Args:
+        files (list[str]): List of filenames to move or copy.
+        src_dir (str): Source directory where the files are located.
+        dest_dir (str): Destination directory to move or copy the files to.
+        action (str): Either 'move' or 'copy'. Defaults to 'move'.
+        quiet (bool): If True, suppresses output. Defaults to False.
+    """
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+    
+    for file in files:
+        src_file = os.path.join(src_dir, file)
+        dest_file = os.path.join(dest_dir, file)
+        
+        if os.path.exists(src_file):
+            if action == 'move':
+                shutil.move(src_file, dest_file)
+                if not quiet:
+                    print(f"Moved {file} to {dest_dir}")
+            elif action == 'copy':
+                shutil.copy(src_file, dest_file)
+                if not quiet:
+                    print(f"Copied {file} to {dest_dir}")
+        else:
+            if not quiet:
+                print(f"File not found: {src_file}")
+                
+                
+def zip_files(files: list[str], zip_name: str, src_dir: str = '/kaggle/working', quiet: bool = False) -> None:
+    """
+    Compress a list of files into a ZIP archive.
+    
+    Args:
+        files (list[str]): List of filenames to zip.
+        zip_name (str): The name of the output ZIP file.
+        src_dir (str): Source directory where the files are located. Defaults to '/kaggle/working'.
+        quiet (bool): If True, suppresses output. Defaults to False.
+    """
+    zip_path = os.path.join(src_dir, zip_name)
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        for file in files:
+            file_path = os.path.join(src_dir, file)
+            if os.path.exists(file_path):
+                zipf.write(file_path, file)
+                if not quiet:
+                    print(f"Added {file} to {zip_name}")
+            elif not quiet:
+                print(f"File not found: {file_path}")
+
+def unzip_file(zip_file: str, extract_dir: str = '/kaggle/working', quiet: bool = False) -> None:
+    """
+    Extract a ZIP file into the specified directory.
+    
+    Args:
+        zip_file (str): The ZIP file to extract.
+        extract_dir (str): The directory to extract the contents. Defaults to '/kaggle/working'.
+        quiet (bool): If True, suppresses output. Defaults to False.
+    """
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        zip_ref.extractall(extract_dir)
+        if not quiet:
+            print(f"Extracted {zip_file} to {extract_dir}")
