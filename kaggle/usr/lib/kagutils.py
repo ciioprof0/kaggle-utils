@@ -34,36 +34,29 @@ Author: ciioprf0
 """
 
 
-import os
+import os 
 import pandas as pd
 import json
 import sqlite3
 import zipfile
-from typing import Any, Optional
+from typing import Any, Optional, Callable
 
-def inventory_files(parent_dir: str = '/kaggle', max_files: int = 5, max_depth: int = 2) -> None:
+def inventory_files(parent_dir: str = '/kaggle', max_files: int = 5, max_depth: int = 2, quiet: bool = False) -> None:
     """
     Inventory the files and directories starting from the parent directory, 
     printing up to max_files per directory. Optionally restrict the depth 
     of the directory tree traversal with max_depth.
 
-    This function inventories directories and files, specifically identifying utility scripts 
-    in subdirectories under '/kaggle/usr/lib/'. Utility scripts are listed as subdirectory names, 
-    while other files are listed as "Filename".
-
     Args:
         parent_dir (str): The base directory to start the inventory from. Defaults to '/kaggle'.
         max_files (int): The maximum number of files to display per directory. Defaults to 5.
         max_depth (int): The maximum depth to walk into the directory structure. Defaults to 2.
-
-    Example Usage:
-        inventory_files(parent_dir='/kaggle', max_files=5, max_depth=3)
-
-    The function will output the structure of directories and files within the specified depth, 
-    differentiating between utility scripts in '/kaggle/usr/lib/' and regular files in other directories.
+        quiet (bool): If True, suppresses output. Defaults to False.
     """
     
-    print(f"\n# Inventorying directory: {parent_dir}")
+    if not quiet:
+        print(f"\n# Inventorying directory: {parent_dir}")
+    
     parent_dir_depth = parent_dir.rstrip(os.sep).count(os.sep)
 
     # Walk the directory tree starting from the parent directory
@@ -75,37 +68,17 @@ def inventory_files(parent_dir: str = '/kaggle', max_files: int = 5, max_depth: 
 
         # Handle /kaggle/usr/lib/ directories as utility scripts
         if root == '/kaggle/usr/lib':
-            print(f"Directory: {root}")
+            if not quiet:
+                print(f"Directory: {root}")
             for subdir in dirs[:max_files]:
-                print(f"  Local Library: {subdir}")
+                if not quiet:
+                    print(f"  Local Library: {subdir}")
         else:
-            print(f"Directory: {root}")
+            if not quiet:
+                print(f"Directory: {root}")
             for filename in files[:max_files]:
-                print(f"  Filename: {os.path.join(root, filename)}")
-
-
-def load_inputs(input_dir: str = '/kaggle/input', scope: Optional[dict] = None) -> None:
-    """
-    Walk through the input directory and load files into separate variables in the provided scope.
-    Appends '_df' to DataFrame variables for CSV files and '_dict' to dictionary variables for JSON files.
-
-    Args:
-        input_dir (str): The directory where the input files are located. Defaults to '/kaggle/input'.
-        scope (Optional[dict]): The dictionary representing the calling scope (e.g., globals() or locals()).
-
-    Example Usage:
-        load_inputs(scope=globals())
-    """
-    
-    if scope is None:
-        scope = globals()  # Default to the global scope
-
-import os
-import pandas as pd
-import json
-import sqlite3
-import zipfile
-from typing import Any, Callable, Optional
+                if not quiet:
+                    print(f"  Filename: {os.path.join(root, filename)}")
 
 
 def load_csv(filepath: str) -> pd.DataFrame:
@@ -169,7 +142,7 @@ def load_file(filepath: str) -> Any:
         return None
 
 
-def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
+def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None, quiet: bool = False) -> None:
     """
     Walk through the input directory and load files into separate variables in the provided scope.
     Appends '_df' to DataFrame variables for CSV files and '_dict' to dictionary variables for JSON files.
@@ -179,6 +152,7 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
     
     :param input_dir: The base directory where input files are located.
     :param scope: The dictionary representing the calling scope (e.g., globals() or locals()).
+    :param quiet: If True, suppresses output. Defaults to False.
     """
     if scope is None:
         scope = globals()  # Default to the global scope
@@ -197,7 +171,7 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
             # Handle ZIP files by extracting and processing their contents recursively
             if filename.endswith('.zip'):
                 extract_dir = load_zip(filepath)  # Extract the ZIP file
-                load_inputs(extract_dir, scope)  # Recursively process extracted files
+                load_inputs(extract_dir, scope, quiet=quiet)  # Recursively process extracted files
                 
             else:
                 data = load_file(filepath)  # Process regular files (CSV, JSON, etc.)
@@ -216,10 +190,11 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
                 
                 # Inject the variable into the provided scope (global or local)
                 scope[file_key] = data
-                print(f"Loaded '{file_key}' as a {type(data).__name__} from {filename}")
+                if not quiet:
+                    print(f"Loaded '{file_key}' as a {type(data).__name__} from {filename}")
 
     # If no files were found, prompt the user
-    if not found_files:
+    if not found_files and not quiet:
         print("No input files found in the directory.")
         print("Did you forget to add inputs to this notebook?")
         print("To add inputs, go to the notebook menu bar and select 'File' -> 'Add inputs'.")
