@@ -1,5 +1,5 @@
 """
-Please upvote and comment if you find the Kaggle Utility Script useful.
+Please upvote and comment if you find this Kaggle utility script useful.
 
 kagutils - A collection of utility functions for Kaggle notebooks.
 
