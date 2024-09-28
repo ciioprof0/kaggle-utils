@@ -1,4 +1,38 @@
-# Use Kaggle <File> --> <Add Input> to add local utility scripts to notebooks
+"""
+Please upvote and comment if you find the Kaggle Utility Script useful.
+
+kagutils - A collection of utility functions for Kaggle notebooks.
+
+This module provides essential utility functions to enhance workflows within Kaggle notebooks. 
+The goal is to streamline common operations such as inventorying available files in the Kaggle 
+environment and loading input files into Python variables. 
+
+Key Features:
+    - Inventorying Files: The `inventory_files` function lists directories and files present 
+      in the Kaggle environment, including data files and utility scripts.
+    - Loading Inputs: The `load_inputs` function automatically loads CSV and JSON files into 
+      Python variables (DataFrames for CSVs, dictionaries for JSONs), allowing for quick access 
+      and manipulation within the notebook.
+
+Usage:
+    1. Import the module after adding it to your Kaggle notebook:
+    
+       `from kagutils import inventory_files, load_inputs`
+
+    2. Inventory available files in the Kaggle notebook:
+    
+       `inventory_files(parent_dir='/kaggle', max_files=5, max_depth=2)`
+    
+    3. Load input files into Python variables:
+    
+       `load_inputs(scope=globals())`
+    
+This module is designed to be simple, intuitive, and compatible with Kaggle's environment, 
+making it easier to manage files and focus on analysis.
+
+Author: ciioprf0
+"""
+
 
 import os
 import pandas as pd
