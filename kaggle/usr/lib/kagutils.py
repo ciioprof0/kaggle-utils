@@ -209,3 +209,10 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
                 # Inject the variable into the provided scope (global or local)
                 scope[file_key] = data
                 print(f"Loaded '{file_key}' as a {type(data).__name__} from {filename}")
+    
+    # If no files were found, prompt the user
+    if not found_files:
+        print("No input files found in the directory.")
+        print("Did you forget to add inputs to this notebook?")
+        print("To add inputs, go to the notebook menu bar and select 'File' -> 'Add inputs'.")                
+        
