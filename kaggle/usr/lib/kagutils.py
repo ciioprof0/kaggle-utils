@@ -175,13 +175,21 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
     Appends '_df' to DataFrame variables for CSV files and '_dict' to dictionary variables for JSON files.
     If a ZIP archive is encountered, it is extracted, and the files inside are processed recursively.
     
+    Provides feedback if no input files are found and reminds the user to add inputs via 'File' -> 'Add inputs'.
+    
     :param input_dir: The base directory where input files are located.
     :param scope: The dictionary representing the calling scope (e.g., globals() or locals()).
     """
     if scope is None:
         scope = globals()  # Default to the global scope
 
+    found_files = False  # Track if any files are found
+    
+    # Walk through the input directory
     for dirname, _, filenames in os.walk(input_dir):
+        if filenames:
+            found_files = True  # Files found, update the flag
+        
         for filename in filenames:
             filepath = os.path.join(dirname, filename)
             data = None
@@ -189,7 +197,7 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
             # Handle ZIP files by extracting and processing their contents recursively
             if filename.endswith('.zip'):
                 extract_dir = load_zip(filepath)  # Extract the ZIP file
-                load_input_data(extract_dir, scope)  # Recursively process extracted files
+                load_inputs(extract_dir, scope)  # Recursively process extracted files
                 
             else:
                 data = load_file(filepath)  # Process regular files (CSV, JSON, etc.)
@@ -209,10 +217,9 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None) -> None:
                 # Inject the variable into the provided scope (global or local)
                 scope[file_key] = data
                 print(f"Loaded '{file_key}' as a {type(data).__name__} from {filename}")
-    
+
     # If no files were found, prompt the user
     if not found_files:
         print("No input files found in the directory.")
         print("Did you forget to add inputs to this notebook?")
-        print("To add inputs, go to the notebook menu bar and select 'File' -> 'Add inputs'.")                
-        
+        print("To add inputs, go to the notebook menu bar and select 'File' -> 'Add inputs'.")
