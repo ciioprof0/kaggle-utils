@@ -214,7 +214,7 @@ def load_inputs(input_dir: str = '/kaggle/input', scope: dict = None, quiet: boo
                 
                 # If the file is a DataFrame, append '_df' to the variable name
                 if isinstance(data, pd.DataFrame):
-                    file_key += '_df'
+                    'df_' += file_key 
                 
                 # If the file is a Dictionary (JSON), append '_dict' to the variable name
                 elif isinstance(data, dict):
