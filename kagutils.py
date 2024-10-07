@@ -1,6 +1,8 @@
+# %% [code]
 """
 Please upvote and comment if you find this Kaggle utility script useful.
-On Kaggle at: https://www.kaggle.com/code/mikeb3665/kagutils
+GitHub: https://github.com/ciioprof0/kagutils
+Kaggle: https://www.kaggle.com/code/mikeb3665/kagutils
 
 kagutils - A collection of utility functions for Kaggle notebooks.
 
@@ -57,6 +59,20 @@ Usage:
     8. Extract a ZIP archive into a directory:
     
        `unzip_file('my_archive.zip', '/kaggle/working', quiet=False)`
+       
+    9. Finding kaggle.json: The `find_kaggle_json` function searches for the `kaggle.json` file in the
+      default `~/.kaggle/` directory. If it is not found, it can copy it from a custom path, ensuring
+      it is placed in the correct location.
+      
+    10. Checking kaggle.json Permissions: The `check_kaggle_json_permissions` function verifies the
+      permissions of the `kaggle.json` file. On Unix-based systems, it sets the permissions to `chmod 600`.
+      On Windows, it ensures the file is read-only.
+      
+    11. Validating kaggle.json: The `validate_kaggle_json` function ensures the `kaggle.json` file contains
+      valid JSON data, specifically checking for the presence of the required keys: `username` and `key`.
+      
+    12. Running kaggle.json Utilities: The `kaggle_json_utils` function combines the operations of finding,
+      checking permissions, and validating the `kaggle.json` file in a single call.
     
 This module is designed to be simple, intuitive, and compatible with Kaggle's environment, 
 making it easier to manage files, directories, and data operations, so you can focus on analysis.
@@ -68,10 +84,17 @@ Author: ciioprf0
 import os 
 import json
 import pandas as pd
+import platform
 import shutil
 import sqlite3
+import stat
 import zipfile
+from pathlib import Path
 from typing import Any, Optional, Callable
+
+# Constants
+KAGGLE_DIR = Path.home() / ".kaggle"
+KAGGLE_JSON = KAGGLE_DIR / "kaggle.json"
 
 
 def inventory_files(parent_dir: str = '/kaggle', max_files: int = 5, max_depth: int = 2, quiet: bool = False) -> None:
@@ -353,3 +376,115 @@ def unzip_file(zip_file: str, extract_dir: str = '/kaggle/working', quiet: bool 
         zip_ref.extractall(extract_dir)
         if not quiet:
             print(f"Extracted {zip_file} to {extract_dir}")
+            
+
+def find_kaggle_json(custom_path: str = None) -> bool:
+    """
+    Find the kaggle.json file in the default ~/.kaggle directory or the specified custom location.
+    If it does not exist in ~/.kaggle, move it there from the custom_path.
+
+    Args:
+        custom_path (str): Optional custom path to check for kaggle.json.
+
+    Returns:
+        bool: True if kaggle.json is found or successfully moved, False otherwise.
+    """
+    # Check if kaggle.json exists in the default ~/.kaggle location
+    if KAGGLE_JSON.exists():
+        print(f"kaggle.json found at {KAGGLE_JSON}")
+        return True
+
+    # Check if a custom path is provided and kaggle.json exists there
+    if custom_path:
+        custom_json_path = Path(custom_path)
+        if custom_json_path.exists() and custom_json_path.name == "kaggle.json":
+            # Move kaggle.json to the default ~/.kaggle location
+            KAGGLE_DIR.mkdir(exist_ok=True)
+            shutil.copy(custom_json_path, KAGGLE_JSON)
+            print(f"Copied kaggle.json to {KAGGLE_JSON}")
+            return True
+        else:
+            print(f"kaggle.json not found in the custom path: {custom_json_path}")
+
+    print("kaggle.json not found")
+    return False
+
+
+def check_kaggle_json_permissions() -> bool:
+    """
+    Check if kaggle.json has the correct permissions (chmod 600 on Linux/Mac, read-only on Windows).
+    
+    Returns:
+        bool: True if permissions are correct, False otherwise.
+    """
+    if not KAGGLE_JSON.exists():
+        print(f"{KAGGLE_JSON} does not exist.")
+        return False
+
+    os_type = platform.system()
+    if os_type in ["Linux", "Darwin"]:  # Unix-based systems
+        # Get file permissions
+        st = os.stat(KAGGLE_JSON)
+        permissions = stat.S_IMODE(st.st_mode)
+        
+        if permissions != 0o600:
+            print(f"Incorrect permissions {oct(permissions)}. Setting to 600.")
+            os.chmod(KAGGLE_JSON, 0o600)
+        else:
+            print("Correct permissions (600).")
+    elif os_type == "Windows":  # Windows systems
+        # Check if the file is read-only
+        if not os.access(KAGGLE_JSON, os.R_OK) or os.access(KAGGLE_JSON, os.W_OK):
+            print(f"Incorrect permissions. Setting read-only.")
+            os.chmod(KAGGLE_JSON, stat.S_IREAD)
+        else:
+            print("Correct permissions (read-only).")
+    else:
+        print(f"Unsupported OS: {os_type}")
+        return False
+    
+    return True
+
+
+def validate_kaggle_json() -> bool:
+    """
+    Check if the kaggle.json file contains valid content (keys: 'username' and 'key').
+    
+    Returns:
+        bool: True if the file contains valid JSON and required keys, False otherwise.
+    """
+    if not KAGGLE_JSON.exists():
+        print(f"{KAGGLE_JSON} does not exist.")
+        return False
+
+    try:
+        import json
+        with open(KAGGLE_JSON, 'r') as f:
+            data = json.load(f)
+
+        if 'username' in data and 'key' in data:
+            print("kaggle.json is valid.")
+            return True
+        else:
+            print("Invalid kaggle.json. Missing 'username' or 'key'.")
+            return False
+    except json.JSONDecodeError:
+        print("Error decoding kaggle.json. Ensure it is a valid JSON file.")
+        return False
+
+
+def kaggle_json_utils(custom_path: str = None):
+    """
+    Helper function to perform all kaggle.json-related checks and actions.
+
+    Args:
+        custom_path (str): Optional path to a custom location of kaggle.json.
+    """
+    if not find_kaggle_json(custom_path):
+        return
+    
+    if not check_kaggle_json_permissions():
+        return
+
+    validate_kaggle_json()
+
